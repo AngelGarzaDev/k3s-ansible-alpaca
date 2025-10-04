@@ -1,0 +1,95 @@
+---                                             # Stateful Set
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  labels:
+    app: jellyfin
+  name: jellyfin
+  namespace: media
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: jellyfin
+  serviceName: jellyfin
+  template:
+    metadata:
+      labels:
+        app: jellyfin
+    spec:
+      containers:                              # Container
+      - image: jellyfin/jellyfin:latest
+        name: jellyfin
+        resources:
+          requests:
+            cpu: "500m"
+            memory: "500M"
+          limits:
+            cpu: "4000m"
+            memory: "4G"
+            # gpu.intel.com/i915: "1"
+        env:
+#        - name: JELLYFIN_PublishedServerUrl
+#          value: 192.168.3.91
+        - name: JELLYFIN_DATA_DIR
+          value: /data
+        - name: JELLYFIN_CACHE_DIR
+          value: /data/cache
+        - name: JELLYFIN_CONFIG_DIR
+          value: /data/config
+        - name: JELLYFIN_LOG_DIR
+          value: /data/config/log
+        volumeMounts:
+          - name: data
+            mountPath: /data
+          - name: media
+            mountPath: /media
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8096
+        ports:
+        - containerPort: 8096
+          name: http-tcp
+          protocol: TCP
+        - containerPort: 8920
+          name: https-tcp
+          protocol: TCP
+        - containerPort: 1900
+          name: dlna-udp
+          protocol: UDP
+        - containerPort: 7359
+          name: discovery-udp
+          protocol: UDP  
+      securityContext:
+        runAsUser: 103064
+        runAsGroup: 103064
+        supplementalGroups: 
+          - 44
+          - 105
+          - 226
+      volumes:
+      - name: media
+        nfs:
+          server: 192.168.1.10
+          path: /mnt/cpool1/media
+          readOnly: false
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 1
+            preference:
+              matchExpressions:
+              - key: host
+                operator: In
+                values:
+                - metal
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      storageClassName: nfs
+      resources:
+        requests:
+          storage: 16Gi
