@@ -63,7 +63,7 @@ spec:
           protocol: UDP  
       securityContext:
         runAsUser: 103064
-        runAsGroup: 103064
+        runAsGroup: 3003
         supplementalGroups: 
           - 44
           - 105
