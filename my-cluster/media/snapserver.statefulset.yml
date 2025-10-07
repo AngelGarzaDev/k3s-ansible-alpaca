@@ -1,0 +1,51 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: snapserver
+  labels:
+    app: snapserver
+  namespace: media
+spec:
+  ports:
+  - port: 80
+    name: web
+  clusterIP: None
+  selector:
+    app: snapserver
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: snapcast
+  namespace: media
+spec:
+  selector:
+    matchLabels:
+      app: snapserver
+  serviceName: "snapserver"
+  replicas: 1
+  minReadySeconds: 10
+  template:
+    metadata:
+      labels:
+        app: snapserver
+    spec:
+      terminationGracePeriodSeconds: 30
+      containers:
+      - name: snapserver
+        image: ghcr.io/firefrei/snapcast/server:latest
+        ports:
+        - containerPort: 1704
+          name: snapcast-port
+        volumeMounts:
+        - name: snapcast-data
+          mountPath: /app/data
+  volumeClaimTemplates:
+  - metadata:
+      name: snapcast-data
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      storageClassName: "nfs"
+      resources:
+        requests:
+          storage: 16Gi
